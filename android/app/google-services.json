@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "354595070474",
+    "project_id": "tracker-3b5dc",
+    "storage_bucket": "tracker-3b5dc.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354595070474:android:9d96ac7209dcdc698b35f3",
+        "android_client_info": {
+          "package_name": "com.example.trackermate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "354595070474-3a9bvi6s3pjt3k70cjd2s01543jfjabv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS-hxTMETWzRnm8pKgENiaytwrwJFpmSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "354595070474-3a9bvi6s3pjt3k70cjd2s01543jfjabv.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "354595070474-9c9l396re46i4t5ro4crt74rkm24h3fc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.trackmate"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354595070474:android:eef5af67157845d08b35f3",
+        "android_client_info": {
+          "package_name": "com.example.trackmate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "354595070474-3a9bvi6s3pjt3k70cjd2s01543jfjabv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS-hxTMETWzRnm8pKgENiaytwrwJFpmSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "354595070474-3a9bvi6s3pjt3k70cjd2s01543jfjabv.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "354595070474-9c9l396re46i4t5ro4crt74rkm24h3fc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.trackmate"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
