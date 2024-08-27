@@ -15,6 +15,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _logoAnimation;
   late Animation<double> _textAnimation;
   late Animation<double> _indicatorAnimation;
+  
 
   @override
   void initState() {
