@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:trackermate/route.dart';
+// import 'package:trackermate/route.dart';
 import 'package:trackermate/services/auth_service.dart';
 import 'package:trackermate/services/location_service.dart';
 import 'package:trackermate/services/shared_pref.dart';
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
-
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -19,7 +16,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final LocationService _locationService = LocationService();
   final AuthService _authService = AuthService();
-  
+
   GoogleMapController? _mapController;
   Position? _currentPosition;
   bool _isLoading = true;
@@ -51,7 +48,8 @@ class _HomePageState extends State<HomePage> {
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
-            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            target:
+                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
             zoom: 15,
           ),
         ),
@@ -62,17 +60,25 @@ class _HomePageState extends State<HomePage> {
   Future<void> _logout() async {
     await _authService.signOut();
     await SharedPrefsService.setLoggedIn(false);
-    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFD9D9D9),
       appBar: AppBar(
-        title: const Text('TrackMate'),
+        backgroundColor: Colors.blue.shade800,
+        title: const Text(
+          'TrackMate',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(
+              Icons.logout,
+              color: Colors.white,
+            ),
             onPressed: _logout,
           ),
         ],
@@ -86,7 +92,8 @@ class _HomePageState extends State<HomePage> {
               },
               initialCameraPosition: CameraPosition(
                 target: _currentPosition != null
-                    ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                    ? LatLng(
+                        _currentPosition!.latitude, _currentPosition!.longitude)
                     : const LatLng(0, 0),
                 zoom: 15,
               ),

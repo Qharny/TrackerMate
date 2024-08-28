@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:trackermate/route.dart';
+// import 'package:trackermate/route.dart';
 import 'package:trackermate/services/auth_service.dart';
 import 'package:trackermate/services/shared_pref.dart';
 
@@ -62,7 +62,7 @@ class _AuthScreenState extends State<AuthScreen>
           await _auth.signUp(_email, _password);
         }
         await SharedPrefsService.setLoggedIn(true);
-        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+        Navigator.of(context).pushReplacementNamed('/home');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

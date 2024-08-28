@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:trackermate/route.dart';
+// import 'package:trackermate/route.dart';
 import 'package:trackermate/services/shared_pref.dart';
 
 
@@ -60,9 +60,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // Navigate to appropriate screen
     if (isLoggedIn) {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      Navigator.of(context).pushReplacementNamed('/login');
     }
   }
 
