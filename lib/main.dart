@@ -36,7 +36,7 @@ class TrackMate extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/settings': (context) => const SettingsScreen(),
       },
-      initialRoute: '/home',
+      initialRoute: '/',
       // onGenerateRoute: AppRoutes.generateRoute,
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
