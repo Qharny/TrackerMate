@@ -32,9 +32,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      Position position = await _locationService.getCurrentLocation(
-        context,
-      );
+      Position? position = await LocationService.getCurrentLocation();
       setState(() {
         _currentPosition = position;
         _isLoading = false;

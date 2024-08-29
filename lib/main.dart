@@ -7,13 +7,13 @@ import 'package:trackermate/services/shared_pref.dart';
 import 'screens/auth/auth.dart';
 import 'screens/settings.dart';
 import 'screens/splash.dart';
-import 'services/location_service.dart';
+// import 'services/location_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await SharedPrefsService.init();
-  await LocationService.initialize();
+  // await LocationService.initialize();
   runApp(const TrackMate());
 }
 
