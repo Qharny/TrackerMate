@@ -38,7 +38,6 @@ class TrackMate extends StatelessWidget {
       },
       initialRoute: '/',
       // onGenerateRoute: AppRoutes.generateRoute,
-      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
