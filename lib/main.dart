@@ -11,7 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await SharedPrefsService.init();
-  await LocationService().initialize();
+  // await LocationService().initialize();
   runApp(const TrackMate());
 }
 
