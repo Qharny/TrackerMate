@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:trackermate/route.dart';
 import 'package:trackermate/services/shared_pref.dart';
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,12 +8,12 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _logoAnimation;
   late Animation<double> _textAnimation;
   late Animation<double> _indicatorAnimation;
-  
 
   @override
   void initState() {
@@ -51,18 +49,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _navigateToNextScreen();
   }
 
-  void _navigateToNextScreen() async {
-    // Wait for animations to complete
-    await Future.delayed(const Duration(seconds: 3));
+  Future<void> _navigateToNextScreen() async {
+    try {
+      // Wait for animations to complete
+      await Future.delayed(const Duration(seconds: 3));
 
-    // Check login status
-    bool isLoggedIn = SharedPrefsService.isLoggedIn();
+      // Check login status from SharedPreferences
+      bool isLoggedIn = await SharedPrefsService.isLoggedIn();
 
-    // Navigate to appropriate screen
-    if (isLoggedIn) {
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
-      Navigator.of(context).pushReplacementNamed('/login');
+      // Navigate to the appropriate screen
+      if (mounted) {
+        if (isLoggedIn) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/auth');
+        }
+      }
+    } catch (e) {
+      // Handle any errors that occur during navigation
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An error occurred. Please try again.')),
+        );
+      }
     }
   }
 
@@ -99,6 +108,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     Icons.location_on_outlined,
                     size: 80,
                     color: Colors.blue.shade800,
+                    semanticLabel: 'TrackMate logo',
                   ),
                 ),
               ),
@@ -113,6 +123,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     color: Colors.white,
                     letterSpacing: 2,
                   ),
+                  semanticsLabel: 'TrackMate',
                 ),
               ),
               const SizedBox(height: 20),
@@ -120,6 +131,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 opacity: _indicatorAnimation,
                 child: const CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  semanticsLabel: 'Loading',
                 ),
               ),
             ],

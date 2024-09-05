@@ -1,11 +1,8 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:trackermate/services/auth_service.dart';
-import 'package:trackermate/services/location_service.dart';
-import 'package:trackermate/services/shared_pref.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,192 +11,180 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final LocationService _locationService = LocationService();
-  final AuthService _authService = AuthService();
-  final TextEditingController _searchController = TextEditingController();
-
-  GoogleMapController? _mapController;
-  Position? _currentPosition;
-  bool _isLoading = true;
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  late GoogleMapController _mapController;
   final Set<Marker> _markers = {};
+  final TextEditingController _searchController = TextEditingController();
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
+    _fadeController.forward();
+    _requestLocationPermission();
   }
 
-  Future<void> _getCurrentLocation() async {
-    try {
-      Position? position = await LocationService.getCurrentLocation();
-      setState(() {
-        _currentPosition = position;
-        _isLoading = false;
-        _updateMarkers();
-      });
-      _updateCameraPosition();
-    } catch (e) {
-      print('Error getting location: $e');
-      setState(() {
-        _isLoading = false;
-      });
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled.');
     }
-  }
 
-  void _updateCameraPosition() {
-    if (_currentPosition != null && _mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target:
-                LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-            zoom: 15,
-          ),
-        ),
-      );
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
     }
-  }
-
-  void _updateMarkers() {
-    if (_currentPosition != null) {
-      setState(() {
-        _markers.add(Marker(
-          markerId: const MarkerId('currentLocation'),
-          position:
-              LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          infoWindow: const InfoWindow(title: 'Your Location'),
-        ));
-      });
+    
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied');
     }
+
+    _startLocationTracking();
   }
 
-  Future<void> _logout() async {
-    await _authService.signOut();
-    await SharedPrefsService.setLoggedIn(false);
-    Navigator.of(context).pushReplacementNamed('/login');
-  }
-
-  void _onSearch() async {
-    // This is a placeholder. In a real app, you would fetch the location from your server.
-    String username = _searchController.text;
-    // Simulating a server response with a random nearby location
-    double lat =
-        _currentPosition!.latitude + (Random().nextDouble() - 0.5) / 100;
-    double lng =
-        _currentPosition!.longitude + (Random().nextDouble() - 0.5) / 100;
-
-    setState(() {
-      _markers.add(Marker(
-        markerId: MarkerId(username),
-        position: LatLng(lat, lng),
-        infoWindow: InfoWindow(title: '$username\'s Device'),
-      ));
+  void _startLocationTracking() {
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      _updateLocation(position);
     });
+  }
 
-    _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+  void _updateLocation(Position position) {
+    FirebaseFirestore.instance.collection('device_locations').doc('current_user_id').set({
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  void _searchDevice() async {
+    String username = _searchController.text;
+    if (username.isNotEmpty) {
+      try {
+        DocumentSnapshot doc = await FirebaseFirestore.instance
+            .collection('device_locations')
+            .doc(username)
+            .get();
+
+        if (doc.exists) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          LatLng deviceLocation = LatLng(data['latitude'], data['longitude']);
+          
+          setState(() {
+            _markers.clear();
+            _markers.add(Marker(
+              markerId: MarkerId(username),
+              position: deviceLocation,
+              infoWindow: InfoWindow(title: username),
+            ));
+          });
+
+          _mapController.animateCamera(CameraUpdate.newLatLngZoom(deviceLocation, 15));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No device found for username: $username')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error searching for device: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD9D9D9),
-      appBar: AppBar(
-        backgroundColor: Colors.blue.shade800,
-        title: const Text('TrackMate', style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter username to search',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _onSearch,
-                  child: const Text('Search'),
-                ),
-              ],
+      backgroundColor: Colors.grey[900],
+      body: SafeArea(
+        child: Stack(
+          children: [
+            GoogleMap(
+              onMapCreated: (controller) => _mapController = controller,
+              initialCameraPosition: const CameraPosition(
+                target: LatLng(0, 0),
+                zoom: 2,
+              ),
+              markers: _markers,
+              mapType: MapType.normal,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
             ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : GoogleMap(
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                      _updateCameraPosition();
-                    },
-                    initialCameraPosition: CameraPosition(
-                      target: _currentPosition != null
-                          ? LatLng(_currentPosition!.latitude,
-                              _currentPosition!.longitude)
-                          : const LatLng(0, 0),
-                      zoom: 15,
-                    ),
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    markers: _markers,
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Card(
+                  color: Colors.grey[800],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
                   ),
-          ),
-        ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: 'Enter username to track',
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.search, color: Colors.blue),
+                          onPressed: _searchDevice,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _getCurrentLocation,
+        backgroundColor: Colors.blue,
         child: const Icon(Icons.my_location),
-      ),
-    );
-  }
-
-  Widget _buildDrawer() {
-    return Drawer(
-      width: MediaQuery.of(context).size.width * 0.5,
-      backgroundColor: const Color(0xFFD9D9D9),
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Column(
-                children: [
-                  Icon(Icons.account_circle, size: 100, color: Colors.white),
-                  Text('Username',
-                      style: TextStyle(fontSize: 20, color: Colors.white)),
-                ],
-              )),
-          ListTile(
-            leading: const Icon(Icons.account_circle),
-            title: const Text('Profile'),
-            onTap: () {
-              Navigator.pop(context);
-              // Navigate to profile page
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Settings'),
-            onTap: () {
-              Navigator.pop(context); // Close the drawer
-              Navigator.pushNamed(context, '/settings');
-            },
-          ),
-        ],
+        onPressed: () async {
+          Position position = await Geolocator.getCurrentPosition();
+          _mapController.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(position.latitude, position.longitude),
+              15,
+            ),
+          );
+        },
       ),
     );
   }
