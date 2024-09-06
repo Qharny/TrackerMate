@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:trackermate/services/shared_pref.dart';
-import 'package:trackermate/services/location_service.dart';
 import 'package:trackermate/screens/home.dart';
 import 'package:trackermate/screens/auth/auth.dart';
 import 'package:trackermate/screens/settings.dart';

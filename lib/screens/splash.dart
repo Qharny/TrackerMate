@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
       await Future.delayed(const Duration(seconds: 3));
 
       // Check login status from SharedPreferences
-      bool isLoggedIn = await SharedPrefsService.isLoggedIn();
+      bool isLoggedIn = SharedPrefsService.isLoggedIn();
 
       // Navigate to the appropriate screen
       if (mounted) {
