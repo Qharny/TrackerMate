@@ -16,6 +16,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  
+  // New variables for menu animation
+  late AnimationController _menuController;
+  late Animation<double> _menuAnimation;
+  bool _isMenuOpen = false;
 
   @override
   void initState() {
@@ -26,12 +31,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
     _fadeController.forward();
+    
+    // Initialize menu animation controller
+    _menuController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _menuAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_menuController);
+    
     _requestLocationPermission();
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
+    _menuController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -115,6 +129,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  void _toggleMenu() {
+    setState(() {
+      _isMenuOpen = !_isMenuOpen;
+      if (_isMenuOpen) {
+        _menuController.forward();
+      } else {
+        _menuController.reverse();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,18 +197,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.my_location),
-        onPressed: () async {
-          Position position = await Geolocator.getCurrentPosition();
-          _mapController.animateCamera(
-            CameraUpdate.newLatLngZoom(
-              LatLng(position.latitude, position.longitude),
-              15,
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          ScaleTransition(
+            scale: _menuAnimation,
+            child: FloatingActionButton(
+              heroTag: "location",
+              backgroundColor: Colors.blue,
+              child: const Icon(Icons.my_location),
+              onPressed: () async {
+                Position position = await Geolocator.getCurrentPosition();
+                _mapController.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(position.latitude, position.longitude),
+                    15,
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 16),
+          ScaleTransition(
+            scale: _menuAnimation,
+            child: FloatingActionButton(
+              heroTag: "settings",
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.settings),
+              onPressed: () {
+                // Add settings functionality
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: "menu",
+            backgroundColor: Colors.blue,
+            onPressed: _toggleMenu,
+            child: AnimatedIcon(
+              icon: AnimatedIcons.menu_close,
+              progress: _menuController,
+            ),
+          ),
+        ],
       ),
     );
   }
