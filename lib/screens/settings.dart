@@ -3,10 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({Key? key}) : super(key: key);
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  _SettingsPageState createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
@@ -48,10 +48,10 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       // Update Firestore document
-      await _firestore.collection('users').doc(_user.uid).update({
+      await _firestore.collection('users').doc(_user.uid).set({
         'displayName': _displayNameController.text,
         'email': _emailController.text,
-      });
+      }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully')),

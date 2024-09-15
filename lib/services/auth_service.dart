@@ -3,12 +3,27 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<UserCredential> signUp(String email, String password) async {
-    return await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Create a new document for the user in the users collection
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'email': email,
+        'displayName': userCredential.user!.displayName ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      return userCredential;
+    } catch (e) {
+      print(e.toString());
+      rethrow;
+    }
   }
 
   Future<UserCredential> signIn(String email, String password) async {
