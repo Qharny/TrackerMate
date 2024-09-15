@@ -17,6 +17,7 @@ class _AuthScreenState extends State<AuthScreen>
   String _email = '';
   String _password = '';
   bool _isLogin = true;
+  bool _isLoading = false;  // New state variable to track loading state
 
   late AnimationController _animationController;
   late Animation<double> _textAnimation;
@@ -54,6 +55,9 @@ class _AuthScreenState extends State<AuthScreen>
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+      setState(() {
+        _isLoading = true;  // Set loading to true when starting authentication
+      });
       try {
         if (_isLogin) {
           await _auth.signIn(_email, _password);
@@ -67,6 +71,12 @@ class _AuthScreenState extends State<AuthScreen>
           const SnackBar(
               content: Text('Authentication failed. Please try again.')),
         );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;  // Set loading back to false when authentication is complete
+          });
+        }
       }
     }
   }
@@ -186,8 +196,17 @@ class _AuthScreenState extends State<AuthScreen>
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            onPressed: _submitForm,
-                            child: Text(_isLogin ? 'Login' : 'Sign Up'),
+                            onPressed: _isLoading ? null : _submitForm,
+                            child: _isLoading
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.blue.shade800),
+                                    ),
+                                  )
+                                : Text(_isLogin ? 'Login' : 'Sign Up'),
                           ),
                           const SizedBox(height: 20),
                           TextButton(
