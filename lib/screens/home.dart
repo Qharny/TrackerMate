@@ -226,7 +226,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               backgroundColor: Colors.green,
               child: const Icon(Icons.settings),
               onPressed: () {
-                // Add settings functionality
+                Navigator.of(context).pushNamed('/settings');
               },
             ),
           ),

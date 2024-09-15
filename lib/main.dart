@@ -30,7 +30,7 @@ class TrackMate extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/auth': (context) => const AuthScreen(),
         '/home': (context) => const HomePage(),
-        '/settings': (context) => const SettingsScreen(),
+        '/settings': (context) => const SettingsPage(),
       },
       initialRoute: '/',
     );
