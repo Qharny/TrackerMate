@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 
 class HomePage extends StatefulWidget {
@@ -19,7 +20,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
+  
   late AnimationController _menuController;
   late Animation<double> _menuAnimation;
   bool _isMenuOpen = false;
@@ -30,6 +31,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   LatLng _currentPosition = const LatLng(0, 0);
   bool _locationPermissionGranted = false;
 
+  // New variables for real-time updates
+  String? _currentUserId;
+  final Map<String, StreamSubscription<DocumentSnapshot>> _locationStreams = {};
+
   @override
   void initState() {
     super.initState();
@@ -37,19 +42,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _fadeAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
     _fadeController.forward();
-
+    
     _menuController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _menuAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(_menuController);
-
+    _menuAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_menuController);
+    
     _checkConnectivity();
     _requestLocationPermission();
+    _initializeCurrentUser();
   }
 
   @override
@@ -57,7 +61,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.dispose();
     _menuController.dispose();
     _searchController.dispose();
+    _locationStreams.forEach((_, subscription) => subscription.cancel());
     super.dispose();
+  }
+
+  Future<void> _initializeCurrentUser() async {
+    // In a real app, you'd get the current user's ID from your authentication system
+    // For this example, we'll use a dummy ID
+    _currentUserId = 'current_user_id';
+    _startListeningToLocationUpdates(_currentUserId!);
   }
 
   Future<void> _checkConnectivity() async {
@@ -67,13 +79,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-          setState(() {
-            _isOnline = result != ConnectivityResult.none;
-          });
-          if (_isOnline) {
-            _syncOfflineData();
-          }
-        } as void Function(List<ConnectivityResult> event)?);
+      setState(() {
+        _isOnline = result != ConnectivityResult.none;
+      });
+      if (_isOnline) {
+        _syncOfflineData();
+      }
+    } as void Function(List<ConnectivityResult> event)?);
   }
 
   Future<void> _requestLocationPermission() async {
@@ -92,7 +104,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return Future.error('Location permissions are denied');
       }
     }
-
+    
     if (permission == LocationPermission.deniedForever) {
       return Future.error('Location permissions are permanently denied');
     }
@@ -113,8 +125,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _currentPosition = LatLng(position.latitude, position.longitude);
         _updateMarkers();
       });
-      _mapController
-          .animateCamera(CameraUpdate.newLatLngZoom(_currentPosition, 15));
+      _mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentPosition, 15));
     } catch (e) {
       print("Error getting current location: $e");
     }
@@ -149,13 +160,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _sendLocationToFirebase(
-      Map<String, dynamic> locationData) async {
+  Future<void> _sendLocationToFirebase(Map<String, dynamic> locationData) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('device_locations')
-          .doc('current_user_id')
-          .set({
+      await FirebaseFirestore.instance.collection('device_locations').doc(_currentUserId).set({
         'latitude': locationData['latitude'],
         'longitude': locationData['longitude'],
         'timestamp': FieldValue.serverTimestamp(),
@@ -205,19 +212,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             .get();
 
         if (doc.exists) {
+          _startListeningToLocationUpdates(username);
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          LatLng deviceLocation = LatLng(data['latitude'], data['longitude']);
-
-          setState(() {
-            _markers.add(Marker(
-              markerId: MarkerId(username),
-              position: deviceLocation,
-              infoWindow: InfoWindow(title: username),
-            ));
-          });
-
-          _mapController
-              .animateCamera(CameraUpdate.newLatLngZoom(deviceLocation, 15));
+          _updateDeviceMarker(username, data);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No device found for username: $username')),
@@ -231,12 +228,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  void _startListeningToLocationUpdates(String userId) {
+    if (_locationStreams.containsKey(userId)) {
+      // Already listening to this user's updates
+      return;
+    }
+
+    var stream = FirebaseFirestore.instance
+        .collection('device_locations')
+        .doc(userId)
+        .snapshots();
+
+    _locationStreams[userId] = stream.listen((docSnapshot) {
+      if (docSnapshot.exists) {
+        Map<String, dynamic> data = docSnapshot.data() as Map<String, dynamic>;
+        _updateDeviceMarker(userId, data);
+      }
+    });
+  }
+
+  void _updateDeviceMarker(String userId, Map<String, dynamic> data) {
+    LatLng deviceLocation = LatLng(data['latitude'], data['longitude']);
+    
+    setState(() {
+      _markers.removeWhere((marker) => marker.markerId == MarkerId(userId));
+      _markers.add(Marker(
+        markerId: MarkerId(userId),
+        position: deviceLocation,
+        infoWindow: InfoWindow(title: userId),
+      ));
+    });
+
+    if (userId != _currentUserId) {
+      _mapController.animateCamera(CameraUpdate.newLatLng(deviceLocation));
+    }
+  }
+
   void _updateMarkers() {
     setState(() {
-      _markers.removeWhere(
-          (marker) => marker.markerId == const MarkerId('currentLocation'));
+      _markers.removeWhere((marker) => marker.markerId == MarkerId(_currentUserId!));
       _markers.add(Marker(
-        markerId: const MarkerId('currentLocation'),
+        markerId: MarkerId(_currentUserId!),
         position: _currentPosition,
         infoWindow: const InfoWindow(title: 'Current Location'),
       ));
