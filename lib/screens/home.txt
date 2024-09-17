@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,16 +16,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
+  
+  // New variables for menu animation
   late AnimationController _menuController;
   late Animation<double> _menuAnimation;
   bool _isMenuOpen = false;
-
-  bool _isOnline = true;
-  List<Map<String, dynamic>> _offlineData = [];
-
-  LatLng _currentPosition = const LatLng(0, 0);
-  bool _locationPermissionGranted = false;
 
   @override
   void initState() {
@@ -37,18 +29,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _fadeAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
     _fadeController.forward();
-
+    
+    // Initialize menu animation controller
     _menuController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _menuAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(_menuController);
-
-    _checkConnectivity();
+    _menuAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_menuController);
+    
     _requestLocationPermission();
   }
 
@@ -58,22 +48,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _menuController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkConnectivity() async {
-    var connectivityResult = await (Connectivity().checkConnectivity());
-    setState(() {
-      _isOnline = connectivityResult != ConnectivityResult.none;
-    });
-
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-          setState(() {
-            _isOnline = result != ConnectivityResult.none;
-          });
-          if (_isOnline) {
-            _syncOfflineData();
-          }
-        } as void Function(List<ConnectivityResult> event)?);
   }
 
   Future<void> _requestLocationPermission() async {
@@ -92,32 +66,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return Future.error('Location permissions are denied');
       }
     }
-
+    
     if (permission == LocationPermission.deniedForever) {
       return Future.error('Location permissions are permanently denied');
     }
 
-    setState(() {
-      _locationPermissionGranted = true;
-    });
-    _getCurrentLocation();
     _startLocationTracking();
-  }
-
-  Future<void> _getCurrentLocation() async {
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _updateMarkers();
-      });
-      _mapController
-          .animateCamera(CameraUpdate.newLatLngZoom(_currentPosition, 15));
-    } catch (e) {
-      print("Error getting current location: $e");
-    }
   }
 
   void _startLocationTracking() {
@@ -127,72 +81,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         distanceFilter: 10,
       ),
     ).listen((Position position) {
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _updateMarkers();
-      });
       _updateLocation(position);
     });
   }
 
   void _updateLocation(Position position) {
-    Map<String, dynamic> locationData = {
+    FirebaseFirestore.instance.collection('device_locations').doc('current_user_id').set({
       'latitude': position.latitude,
       'longitude': position.longitude,
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-
-    if (_isOnline) {
-      _sendLocationToFirebase(locationData);
-    } else {
-      _storeLocationLocally(locationData);
-    }
-  }
-
-  Future<void> _sendLocationToFirebase(
-      Map<String, dynamic> locationData) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('device_locations')
-          .doc('current_user_id')
-          .set({
-        'latitude': locationData['latitude'],
-        'longitude': locationData['longitude'],
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      print('Error sending location to Firebase: $e');
-      _storeLocationLocally(locationData);
-    }
-  }
-
-  Future<void> _storeLocationLocally(Map<String, dynamic> locationData) async {
-    _offlineData.add(locationData);
-    await _saveOfflineData();
-  }
-
-  Future<void> _saveOfflineData() async {
-    final prefs = await SharedPreferences.getInstance();
-    String jsonData = jsonEncode(_offlineData);
-    await prefs.setString('offline_location_data', jsonData);
-  }
-
-  Future<void> _loadOfflineData() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? jsonData = prefs.getString('offline_location_data');
-    if (jsonData != null) {
-      List<dynamic> decodedData = jsonDecode(jsonData);
-      _offlineData = decodedData.cast<Map<String, dynamic>>();
-    }
-  }
-
-  Future<void> _syncOfflineData() async {
-    await _loadOfflineData();
-    for (var locationData in _offlineData) {
-      await _sendLocationToFirebase(locationData);
-    }
-    _offlineData.clear();
-    await _saveOfflineData();
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   void _searchDevice() async {
@@ -207,8 +105,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         if (doc.exists) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
           LatLng deviceLocation = LatLng(data['latitude'], data['longitude']);
-
+          
           setState(() {
+            _markers.clear();
             _markers.add(Marker(
               markerId: MarkerId(username),
               position: deviceLocation,
@@ -216,8 +115,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ));
           });
 
-          _mapController
-              .animateCamera(CameraUpdate.newLatLngZoom(deviceLocation, 15));
+          _mapController.animateCamera(CameraUpdate.newLatLngZoom(deviceLocation, 15));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('No device found for username: $username')),
@@ -229,18 +127,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
       }
     }
-  }
-
-  void _updateMarkers() {
-    setState(() {
-      _markers.removeWhere(
-          (marker) => marker.markerId == const MarkerId('currentLocation'));
-      _markers.add(Marker(
-        markerId: const MarkerId('currentLocation'),
-        position: _currentPosition,
-        infoWindow: const InfoWindow(title: 'Current Location'),
-      ));
-    });
   }
 
   void _toggleMenu() {
@@ -263,13 +149,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             GoogleMap(
               onMapCreated: (controller) => _mapController = controller,
-              initialCameraPosition: CameraPosition(
-                target: _currentPosition,
-                zoom: 15,
+              initialCameraPosition: const CameraPosition(
+                target: LatLng(0, 0),
+                zoom: 2,
               ),
               markers: _markers,
               mapType: MapType.normal,
-              myLocationEnabled: _locationPermissionGranted,
+              myLocationEnabled: true,
               myLocationButtonEnabled: false,
             ),
             Positioned(
@@ -308,21 +194,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            Positioned(
-              top: 80,
-              left: 16,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _isOnline ? Colors.green : Colors.red,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _isOnline ? 'Online' : 'Offline',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -336,14 +207,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               heroTag: "location",
               backgroundColor: Colors.blue,
               child: const Icon(Icons.my_location),
-              onPressed: () {
-                if (_locationPermissionGranted) {
-                  _mapController.animateCamera(
-                    CameraUpdate.newLatLngZoom(_currentPosition, 15),
-                  );
-                } else {
-                  _requestLocationPermission();
-                }
+              onPressed: () async {
+                Position position = await Geolocator.getCurrentPosition();
+                _mapController.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                    LatLng(position.latitude, position.longitude),
+                    15,
+                  ),
+                );
               },
             ),
           ),
