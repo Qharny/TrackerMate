@@ -344,14 +344,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               top: 80,
               left: 16,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _isOnline ? Colors.green : Colors.red,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   _isOnline ? 'Online' : 'Offline',
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ),
