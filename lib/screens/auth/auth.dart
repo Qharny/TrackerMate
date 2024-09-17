@@ -17,7 +17,7 @@ class _AuthScreenState extends State<AuthScreen>
   String _email = '';
   String _password = '';
   bool _isLogin = true;
-  bool _isLoading = false;  // New state variable to track loading state
+  bool _isLoading = false; 
 
   late AnimationController _animationController;
   late Animation<double> _textAnimation;
