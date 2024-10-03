@@ -35,7 +35,7 @@ TrackMate is a mobile application developed for Nokia mobile accessories to help
 ### Installation
 
 1. Clone the repository:
-> git clone https://github.com/qharny/trackmate.git
+> git clone https://github.com/qharny/trackermate.git
 
 1. Navigate to the project directory:
 > cd trackmate
